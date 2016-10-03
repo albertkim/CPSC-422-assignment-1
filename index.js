@@ -93,7 +93,26 @@ class Grid {
         const adjacentStates = [];
         // Fidn adjacent state information for states that can reach given coordinate given direction to move
         if (direction === Direction.UP) {
-            if (this.checkDirection(coordinate, Direction.DOWN)) {
+            const canComeFromBottom = this.checkDirection(coordinate, Direction.DOWN);
+            const canComeFromRight = this.checkDirection(coordinate, Direction.RIGHT);
+            const canComeFromLeft = this.checkDirection(coordinate, Direction.LEFT);
+            // Handle case where the previous state is self
+            let selfTransitionProbability = 0;
+            if (!canComeFromBottom) {
+                selfTransitionProbability += 0.8;
+            }
+            if (!canComeFromLeft) {
+                selfTransitionProbability += 0.1;
+            }
+            if (!canComeFromRight) {
+                selfTransitionProbability += 0.1;
+            }
+            adjacentStates.push({
+                coordinate: coordinate,
+                transitionProbability: selfTransitionProbability,
+                currentProbability: this.getCurrentProbabilityAtCoordinate(coordinate)
+            });
+            if (canComeFromBottom) {
                 const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.DOWN);
                 adjacentStates.push({
                     coordinate: fromCoordinate,
@@ -101,7 +120,7 @@ class Grid {
                     currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
                 });
             }
-            if (this.checkDirection(coordinate, Direction.LEFT)) {
+            if (canComeFromLeft) {
                 const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.LEFT);
                 adjacentStates.push({
                     coordinate: fromCoordinate,
@@ -109,7 +128,7 @@ class Grid {
                     currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
                 });
             }
-            if (this.checkDirection(coordinate, Direction.RIGHT)) {
+            if (canComeFromRight) {
                 const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.RIGHT);
                 adjacentStates.push({
                     coordinate: fromCoordinate,
