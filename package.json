@@ -4,10 +4,13 @@
   "description": "Assignment 1",
   "main": "src/app.ts",
   "scripts": {
-    "start": "ts-node index.ts"
+    "start": "ts-node index.ts",
+    "debug": "tsc && node --debug index.js"
   },
   "author": "Albert Kim",
   "dependencies": {
+    "cli-table": "^0.3.1",
+    "console.table": "^0.7.0",
     "ts-node": "*",
     "typescript": "^2.0.3"
   }

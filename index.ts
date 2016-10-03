@@ -22,15 +22,18 @@ interface Cell {
   value: number
 }
 
+interface AdjacentStateInfo {
+  coordinate: Coordinate,
+  transitionProbability: number,
+  currentProbability: number
+}
+
 class Grid {
 
   public state: (number | null)[][]
 
-  private correctProbility = 0.8
-  private incorrectProability = 0.1
-
-  constructor(state: (number | null)[][]) {
-    this.state = state
+  constructor(givenState: (number | null)[][]) {
+    this.state = givenState
   }
 
   private height(): number {
@@ -41,15 +44,20 @@ class Grid {
     return (this.state && this.state.length > 0) ? this.state[0].length : 0
   }
 
-  private get(coordinate: Coordinate) {
-    return this.state[this.height() - coordinate.y][this.width() - coordinate.x]
+  private getCurrentProbabilityAtCoordinate(coordinate: Coordinate): number {
+    const currentProbability = this.state[coordinate.y][coordinate.x]
+    if (currentProbability === null) {
+      return 99999
+    } else {
+      return currentProbability
+    }
   }
 
-  private set(coordinate: Coordinate, value: number): void {
-
+  private setCurrentProbabilityAtCoordinate(coordinate: Coordinate, value: number): void {
+    this.state[coordinate.y][coordinate.x] = value
   }
   
-  private getProbailityOfWallsAtPosition(coordinate: Coordinate, numberOfWalls: 1 | 2): number {
+  private getProbabilityOfWallsAtPosition(coordinate: Coordinate, numberOfWalls: 1 | 2): number {
     if (coordinate.x === 3 && numberOfWalls === 1) {
       return 0.9
     }
@@ -68,68 +76,125 @@ class Grid {
   }
 
   private checkDirection(coordinate: Coordinate, direction: Direction): boolean {
-    if (coordinate.x === 1 && direction === Direction.LEFT) {
+    if (coordinate.x === 0 && direction === Direction.LEFT) {
       return false
     }
-    if (coordinate.x === this.width() && direction === Direction.RIGHT) {
+    if (coordinate.x === this.width() - 1 && direction === Direction.RIGHT) {
       return false
     }
-    if (coordinate.y === 1 && direction === Direction.DOWN) {
+    if (coordinate.y === 0 && direction === Direction.UP) {
       return false
     }
-    if (coordinate.y === this.height() && direction === Direction.UP) {
+    if (coordinate.y === this.height() - 1 && direction === Direction.DOWN) {
       return false
     }
     return true
   }
 
-  private checkDirectionEndsAtState(startCoordinate: Coordinate, direction: Direction, endCoordinate: Direction) {
-
-  }
-
   // Expected to check direction before calling this function
-  private getBeliefInDirection(coordinate: Coordinate, direction: Direction): number | null {
-    const xIncrement = (direction === Direction.RIGHT) ? 1 : -1
-    const yIncrement = (direction === Direction.UP) ? 1 : -1
-    const nextValue = this.get({
-      x: coordinate.x + xIncrement,
-      y: coordinate.y + yIncrement
-    })
-    return nextValue
-  }
-
-  private calculateNextBeliefValue(coordinate: Coordinate) {
-    let currentUpBelief: number | null = null
-    if (this.checkDirection(coordinate, Direction.UP)){
-      currentUpBelief = this.getBeliefInDirection(coordinate, Direction.UP)
-    }
-
-    let currentDownBelief: number | null = null
-    if (this.checkDirection(coordinate, Direction.DOWN)){
-      currentDownBelief = this.getBeliefInDirection(coordinate, Direction.DOWN)
-    }
-
-    let currentLeftBelief: number | null = null
-    if (this.checkDirection(coordinate, Direction.LEFT)){
-      currentLeftBelief = this.getBeliefInDirection(coordinate, Direction.LEFT)
-    }
-
-    let currentRightBelief: number | null = null
-    if (this.checkDirection(coordinate, Direction.RIGHT)){
-      currentRightBelief = this.getBeliefInDirection(coordinate, Direction.RIGHT)
+  private getCoordinateInDirection(coordinate: Coordinate, direction: Direction): Coordinate {
+    if (direction === Direction.LEFT || direction === Direction.RIGHT) {
+      const xIncrement = (direction === Direction.RIGHT) ? 1 : -1
+      return {
+        x: coordinate.x + xIncrement,
+        y: coordinate.y
+      }
+    } else {
+      const yIncrement = (direction === Direction.DOWN) ? 1 : -1
+      return {
+        x: coordinate.x,
+        y: coordinate.y + yIncrement
+      }
     }
   }
 
-  public actionAndObservation(coordinate: Coordinate, direction: Direction, observation: number | null): void {
-    // Iterate through every state
+  private calculateNewCurrentStateForCoordinate(coordinate: Coordinate, direction: Direction, observation: 1| 2): void {
     // If a state can reach given coordinate with the given direction, note that state's current and transition probability
     // Combine all the numbers, update state
 
+    const adjacentStates: AdjacentStateInfo[] = []
+
+    // Fidn adjacent state information for states that can reach given coordinate given direction to move
+    if (direction === Direction.UP) {
+      if (this.checkDirection(coordinate, Direction.DOWN)) {
+        const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.DOWN)
+        adjacentStates.push({
+          coordinate: fromCoordinate,
+          transitionProbability: 0.9,
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+        })
+      }
+      if (this.checkDirection(coordinate, Direction.LEFT)) {
+        const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.LEFT)
+        adjacentStates.push({
+          coordinate: fromCoordinate,
+          transitionProbability: 0.1,
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+        })
+      }
+      if (this.checkDirection(coordinate, Direction.RIGHT)) {
+        const fromCoordinate = this.getCoordinateInDirection(coordinate, Direction.RIGHT)
+        adjacentStates.push({
+          coordinate: fromCoordinate,
+          transitionProbability: 0.1,
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+        })
+      }
+    }
+
+    const probabilityOfWallsAtPosition = this.getProbabilityOfWallsAtPosition(coordinate, observation)
+    let addedAdjacentProbabilities = 0.0
+    adjacentStates.forEach(adjacentState => {
+      addedAdjacentProbabilities += (adjacentState.currentProbability) * (adjacentState.transitionProbability)
+    })
+    const newState = probabilityOfWallsAtPosition * addedAdjacentProbabilities
+    this.setCurrentProbabilityAtCoordinate(coordinate, newState)
+  }
+
+  public actionAndObservation(coordinate: Coordinate, direction: Direction, observation: 1 | 2): void {
+    // Call calculateNewCurrentStateForCoordinate for each state
+    for(let y = 0; y < this.height(); y++) {
+      let yRow = this.state[y]
+      for(let x = 0; x < this.width(); x++) {
+        let value = this.state[y][x]
+        if (value !== null) {
+          this.calculateNewCurrentStateForCoordinate(coordinate, direction, observation)
+        }
+      }
+    }
+
+    console.log('Completed iteration')
+    console.log(this)
+
     this.normalize()
+
+    console.log('Normalized')
+    console.log(this)
+  }
+
+  private sumAllCurrentProbabilities(): number {
+    let total = 0
+    this.state.forEach(yRow => {
+      yRow.forEach(x => {
+        if (x !== null) {
+          total += x
+        }
+      })
+    })
+    return total
   }
 
   private normalize(): void {
-
+    const total = this.sumAllCurrentProbabilities()
+    for(let y = 0; y < this.height(); y++) {
+      let yRow = this.state[y]
+      for(let x = 0; x < this.width(); x++) {
+        let value = this.state[y][x]
+        if (value !== null) {
+          this.setCurrentProbabilityAtCoordinate({x: x, y: y}, value/total)
+        }
+      }
+    }
   }
 
 }
@@ -141,38 +206,37 @@ const UnknownPositionState = [
 ]
 
 const grid1 = new Grid(UnknownPositionState)
-grid1.actionAndObservation({x: 1, y: 1}, Direction.UP, 2)
-grid1.actionAndObservation({x: 1, y: 1}, Direction.UP, 2)
-grid1.actionAndObservation({x: 1, y: 1}, Direction.UP, 2)
-console.log(grid1)
+grid1.actionAndObservation({x: 0, y: 2}, Direction.UP, 2)
+grid1.actionAndObservation({x: 0, y: 2}, Direction.UP, 2)
+grid1.actionAndObservation({x: 0, y: 2}, Direction.UP, 2)
 
-const grid2 = new Grid(UnknownPositionState)
-grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
-grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
-grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
-console.log(grid2)
+// const grid2 = new Grid(UnknownPositionState)
+// grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
+// grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
+// grid2.actionAndObservation({x: 1, y: 1}, Direction.UP, 1)
+// console.log(grid2)
 
-const KnownPositionState23 = [
-  [0, 1,    0,  0],
-  [0, null, 0,  0],
-  [0, 0,    0,  0]
-]
-
-const grid3 = new Grid(KnownPositionState23)
-grid3.actionAndObservation({x: 2, y: 3}, Direction.RIGHT, 1)
-grid3.actionAndObservation({x: 2, y: 3}, Direction.RIGHT, 1)
-grid3.actionAndObservation({x: 2, y: 3}, Direction.UP, null)
-console.log(grid3)
-
-const KnownPositionState11 = [
-  [0, 0,    0,  0],
-  [0, null, 0,  0],
-  [1, 0,    0,  0]
-]
-
-const grid4 = new Grid(KnownPositionState11)
-grid4.actionAndObservation({x: 1, y: 1}, Direction.UP, 2)
-grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 2)
-grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 1)
-grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 1)
-console.log(grid4)
+// const KnownPositionState23 = [
+//   [0, 1,    0,  0],
+//   [0, null, 0,  0],
+//   [0, 0,    0,  0]
+// ]
+// 
+// const grid3 = new Grid(KnownPositionState23)
+// grid3.actionAndObservation({x: 2, y: 3}, Direction.RIGHT, 1)
+// grid3.actionAndObservation({x: 2, y: 3}, Direction.RIGHT, 1)
+// grid3.actionAndObservation({x: 2, y: 3}, Direction.UP, null)
+// console.log(grid3)
+// 
+// const KnownPositionState11 = [
+//   [0, 0,    0,  0],
+//   [0, null, 0,  0],
+//   [1, 0,    0,  0]
+// ]
+// 
+// const grid4 = new Grid(KnownPositionState11)
+// grid4.actionAndObservation({x: 1, y: 1}, Direction.UP, 2)
+// grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 2)
+// grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 1)
+// grid4.actionAndObservation({x: 1, y: 1}, Direction.RIGHT, 1)
+// console.log(grid4)
