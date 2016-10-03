@@ -25,7 +25,7 @@ class Grid {
     getCurrentProbabilityAtCoordinate(coordinate) {
         const currentProbability = this.state[coordinate.y][coordinate.x];
         if (currentProbability === null) {
-            return 99999;
+            return null;
         }
         else {
             return currentProbability;
@@ -62,6 +62,10 @@ class Grid {
             return false;
         }
         if (coordinate.y === this.height() - 1 && direction === Direction.DOWN) {
+            return false;
+        }
+        const nextCoordinate = this.getCoordinateInDirection(coordinate, direction);
+        if (this.getCurrentProbabilityAtCoordinate(nextCoordinate) === null) {
             return false;
         }
         return true;
@@ -125,18 +129,18 @@ class Grid {
     actionAndObservation(coordinate, direction, observation) {
         // Call calculateNewCurrentStateForCoordinate for each state
         for (let y = 0; y < this.height(); y++) {
-            let yRow = this.state[y];
             for (let x = 0; x < this.width(); x++) {
                 let value = this.state[y][x];
                 if (value !== null) {
-                    this.calculateNewCurrentStateForCoordinate(coordinate, direction, observation);
+                    this.calculateNewCurrentStateForCoordinate({
+                        x: x,
+                        y: y
+                    }, direction, observation);
                 }
             }
         }
-        console.log('Completed iteration');
-        console.log(this);
         this.normalize();
-        console.log('Normalized');
+        console.log('Completed iteration + normalized');
         console.log(this);
     }
     sumAllCurrentProbabilities() {

@@ -44,10 +44,10 @@ class Grid {
     return (this.state && this.state.length > 0) ? this.state[0].length : 0
   }
 
-  private getCurrentProbabilityAtCoordinate(coordinate: Coordinate): number {
+  private getCurrentProbabilityAtCoordinate(coordinate: Coordinate): number | null {
     const currentProbability = this.state[coordinate.y][coordinate.x]
     if (currentProbability === null) {
-      return 99999
+      return null
     } else {
       return currentProbability
     }
@@ -88,6 +88,10 @@ class Grid {
     if (coordinate.y === this.height() - 1 && direction === Direction.DOWN) {
       return false
     }
+    const nextCoordinate = this.getCoordinateInDirection(coordinate, direction)
+    if (this.getCurrentProbabilityAtCoordinate(nextCoordinate) === null) {
+      return false
+    } 
     return true
   }
 
@@ -121,7 +125,7 @@ class Grid {
         adjacentStates.push({
           coordinate: fromCoordinate,
           transitionProbability: 0.9,
-          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate) as number
         })
       }
       if (this.checkDirection(coordinate, Direction.LEFT)) {
@@ -129,7 +133,7 @@ class Grid {
         adjacentStates.push({
           coordinate: fromCoordinate,
           transitionProbability: 0.1,
-          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate) as number
         })
       }
       if (this.checkDirection(coordinate, Direction.RIGHT)) {
@@ -137,7 +141,7 @@ class Grid {
         adjacentStates.push({
           coordinate: fromCoordinate,
           transitionProbability: 0.1,
-          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate)
+          currentProbability: this.getCurrentProbabilityAtCoordinate(fromCoordinate) as number
         })
       }
     }
@@ -154,21 +158,20 @@ class Grid {
   public actionAndObservation(coordinate: Coordinate, direction: Direction, observation: 1 | 2): void {
     // Call calculateNewCurrentStateForCoordinate for each state
     for(let y = 0; y < this.height(); y++) {
-      let yRow = this.state[y]
       for(let x = 0; x < this.width(); x++) {
         let value = this.state[y][x]
         if (value !== null) {
-          this.calculateNewCurrentStateForCoordinate(coordinate, direction, observation)
+          this.calculateNewCurrentStateForCoordinate({
+            x: x,
+            y: y  
+          }, direction, observation)
         }
       }
     }
 
-    console.log('Completed iteration')
-    console.log(this)
-
     this.normalize()
 
-    console.log('Normalized')
+    console.log('Completed iteration + normalized')
     console.log(this)
   }
 
